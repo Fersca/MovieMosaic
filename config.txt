@@ -1,0 +1,3 @@
+image-path=/home/fersca/code/moviemosaic/web-app/images/mosaics/
+Monster;45;83;11;21;/home/fersca/pelis/monster2/mivi/monster.ser;/home/fersca/pelis/monster2/mivi/;/home/fersca/pelis/monster2/mivi/low/monster.ser;/home/fersca/pelis/monster2/mivi/low/
+

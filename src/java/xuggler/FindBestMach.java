@@ -1,123 +1,161 @@
 package xuggler;
 
 import java.awt.image.BufferedImage;
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Random;
 
 import javax.imageio.ImageIO;
 
 public class FindBestMach {
 
+	private static HashMap<String, String> cache = new HashMap<String, String>();
 	
-	public static String generateMosaic(String foto, String movieName, boolean highRes) throws Exception {
+	public static String generateMosaic(String foto, String movieName, boolean highRes) {
 
-		FindBestMach fbm = new FindBestMach();
-		ColorDetector cd = new ColorDetector();
-		Random r = new Random();
+		try {
 
-		//obtiene la imagen
-		URL url = new URL(foto);
-		BufferedImage image = ImageIO.read(url);
-		
-		//cantidad de imagenes de lado
-		int cantFotosAncho;
-		repetitions=50;
-
-		//obtiene la conf de la pelicula
-		Movie movie = MovieConfig.getMovie(movieName); //"Monster"
-
-		String directory;		
-		int anchoFotos; 
-		int altoFotos;						
-
-		if (highRes){
-			cantFotosAncho = 80;
-			directory = movie.directoryHigh;
-			array = ArraySerialization.deSerialiceArray(movie.colorFileHigh);		
-			anchoFotos = movie.anchoHigh; 
-			altoFotos = movie.altoHigh;						
-		} else {
-			cantFotosAncho = 40;
-			directory = movie.directory;
-			array = ArraySerialization.deSerialiceArray(movie.colorFile);		
-			anchoFotos = movie.ancho; 
-			altoFotos = movie.alto;			
-		}
-
-		//tamanio de las imagenes ejemplo con 80 y 60
-		int ancho =image.getWidth();
-		int alto  =image.getHeight();
-		double pixelsEnAncho = ancho/cantFotosAncho; //48 
-		double proporcios    = anchoFotos/pixelsEnAncho;// 1.6666
-		double pixelsEnAlto  = altoFotos/proporcios;//36
-		int cantFotosAlto  = (int)(alto/pixelsEnAlto);//30
-		
-		System.out.println("Calcular cuadros: "+cantFotosAncho*cantFotosAlto);
-		
-		//dividir la foto en array con color promedio
-		ArrayList<Bloque> bloques = cd.obtieneMatriz(image,cantFotosAncho, cantFotosAlto); //3x3
-		
-		//para cada cuadradito, buscar la imagen mas parecida y la deja en el bloque
-		for (Bloque bloque : bloques) {
-			fbm.getBestImage(bloque);			
-		}
-		
-		//genera una imagen en blanco
-		BufferedImage off_Image =new BufferedImage(anchoFotos*cantFotosAncho, altoFotos*cantFotosAlto, BufferedImage.TYPE_INT_RGB);
-
-		//define el centro de coordenadas
-		int ceroX = 0;
-		int ceroY = 0;
-		
-		System.out.println("Calculando Imagenes");
-		
-		//para cada cuadradito, buscar la imagen mas parecida y la deja en el bloque
-		for (Bloque bloque : bloques) {
-
-			//obtiene la imagen del archivo
-			File file = new File(directory+bloque.imagenSimilar.filename);
+			String cacheKey = foto+movieName;
 			
-			BufferedImage image2 = ImageIO.read(file);
-
-			//obtiene el ancho y el alto
-			int ancho2 = image2.getWidth();
-			int alto2 = image2.getHeight();
-
-			//incrementa el centro del coordenadas
-			ceroX=ancho2*bloque.col;
-			ceroY=alto2*bloque.row;
-			
-			//copia cada pixel de la imagen en las nuevas coordenadas
-			for(int i=0;i<ancho2;i++){
-				for(int j=0;j<alto2;j++){
-					
-					//obtiene el color del pixel
-					int color = image2.getRGB(i,j);
-					
-					//lo pega en la imagen destino
-					try {
-						off_Image.setRGB(ceroX+i, ceroY+j, color);
-					} catch (Exception e){
-						System.out.println(ceroX+i+" - "+ceroY+j);
-						System.out.println(ceroX+i+" - "+ceroY+j);
-					}
-				}
+			if (cache.containsKey(cacheKey)){
+				logMosaic(foto, movieName, highRes, true);
+				return cache.get(cacheKey);
+			} else {
+				logMosaic(foto, movieName, highRes, false);	
 			}
 			
+			FindBestMach fbm = new FindBestMach();
+			ColorDetector cd = new ColorDetector();
+			Random r = new Random();
+
+			//obtiene la imagen
+			URL url = new URL(foto);
+			BufferedImage image = ImageIO.read(url);
+			
+			//cantidad de imagenes de lado
+			int cantFotosAncho;
+			repetitions=50;
+
+			//obtiene la conf de la pelicula
+			Movie movie = MovieConfig.getMovie(movieName); //"Monster"
+
+			String directory;		
+			int anchoFotos; 
+			int altoFotos;						
+
+			if (highRes){
+				cantFotosAncho = 80;
+				directory = movie.directoryHigh;
+				array = ArraySerialization.deSerialiceArray(movie.colorFileHigh);		
+				anchoFotos = movie.anchoHigh; 
+				altoFotos = movie.altoHigh;						
+			} else {
+				cantFotosAncho = 40;
+				directory = movie.directory;
+				array = ArraySerialization.deSerialiceArray(movie.colorFile);		
+				anchoFotos = movie.ancho; 
+				altoFotos = movie.alto;			
+			}
+
+			//tamanio de las imagenes ejemplo con 80 y 60
+			int ancho =image.getWidth();
+			int alto  =image.getHeight();
+			double pixelsEnAncho = ancho/cantFotosAncho; //48 
+			double proporcios    = anchoFotos/pixelsEnAncho;// 1.6666
+			double pixelsEnAlto  = altoFotos/proporcios;//36
+			int cantFotosAlto  = (int)(alto/pixelsEnAlto);//30
+			
+			System.out.println("Calcular cuadros: "+cantFotosAncho*cantFotosAlto);
+			
+			//dividir la foto en array con color promedio
+			ArrayList<Bloque> bloques = cd.obtieneMatriz(image,cantFotosAncho, cantFotosAlto); //3x3
+			
+			//para cada cuadradito, buscar la imagen mas parecida y la deja en el bloque
+			for (Bloque bloque : bloques) {
+				fbm.getBestImage(bloque);			
+			}
+			
+			//genera una imagen en blanco
+			BufferedImage off_Image =new BufferedImage(anchoFotos*cantFotosAncho, altoFotos*cantFotosAlto, BufferedImage.TYPE_INT_RGB);
+
+			//define el centro de coordenadas
+			int ceroX = 0;
+			int ceroY = 0;
+			
+			System.out.println("Calculando Imagenes");
+			
+			//para cada cuadradito, buscar la imagen mas parecida y la deja en el bloque
+			for (Bloque bloque : bloques) {
+
+				//obtiene la imagen del archivo
+				File file = new File(directory+bloque.imagenSimilar.filename);
+				
+				BufferedImage image2 = ImageIO.read(file);
+
+				//obtiene el ancho y el alto
+				int ancho2 = image2.getWidth();
+				int alto2 = image2.getHeight();
+
+				//incrementa el centro del coordenadas
+				ceroX=ancho2*bloque.col;
+				ceroY=alto2*bloque.row;
+				
+				//copia cada pixel de la imagen en las nuevas coordenadas
+				for(int i=0;i<ancho2;i++){
+					for(int j=0;j<alto2;j++){
+						
+						//obtiene el color del pixel
+						int color = image2.getRGB(i,j);
+						
+						//lo pega en la imagen destino
+						try {
+							off_Image.setRGB(ceroX+i, ceroY+j, color);
+						} catch (Exception e){
+							System.out.println(ceroX+i+" - "+ceroY+j);
+							System.out.println(ceroX+i+" - "+ceroY+j);
+						}
+					}
+				}
+				
+			}
+			
+			System.out.println("Grabando Archivo");
+			
+			//pasa la imagen al archivo final
+			String path = MovieConfig.config.get("image-path");
+			String fileName = r.nextInt(10000000)+".png";
+		    File outputfile = new File(path+fileName);
+		    ImageIO.write(off_Image, "png", outputfile);
+		    System.out.println("Fin");
+		    
+		    cache.put(cacheKey, fileName);
+		    return fileName;			
+			
+		} catch (Exception e){
+			e.printStackTrace();
+			return "../error.png";
 		}
 		
-		System.out.println("Grabando Archivo");
-		
-		//pasa la imagen al archivo final
-		String path = "/home/fersca/code/moviemosaic/web-app/images/mosaics/";
-		String fileName = r.nextInt(10000000)+".png";
-	    File outputfile = new File(path+fileName);
-	    ImageIO.write(off_Image, "png", outputfile);
-	    System.out.println("Fin");
-	    return fileName;
 				
+	}
+
+	private static void logMosaic(String foto, String movie, boolean highRes, boolean cache) {
+	
+		try {
+		    PrintWriter out = new PrintWriter(new BufferedWriter(new FileWriter("log.txt", true)));
+		    out.println(movie+";"+foto+";"+highRes+";"+cache);
+		    out.close();
+		} catch (IOException e) {
+		    System.out.println("Error logging");
+		    e.printStackTrace();
+		}
+		
 	}
 
 	//array con la info de las imagenes serializadas
